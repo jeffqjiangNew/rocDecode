@@ -73,6 +73,7 @@ rocDecStatus AvcVideoParser::UnInitialize() {
 
 rocDecStatus AvcVideoParser::ParseVideoData(RocdecSourceDataPacket *p_data) {
     if (p_data->payload && p_data->payload_size) {
+        printf("Frame %d -------------------------------------------------\n", pic_count_); // Jefftest
         if (ParsePictureData(p_data->payload, p_data->payload_size) != PARSER_OK) {
             ERR(STR("Parser failed!"));
             return ROCDEC_RUNTIME_ERROR;
@@ -1809,6 +1810,8 @@ ParserResult AvcVideoParser::DecodeFrameNumGaps() {
     } else if ((p_slice_header->frame_num != prev_ref_frame_num_) && (p_slice_header->frame_num != ((prev_ref_frame_num_ + 1) % max_frame_num))) {
         int unused_short_term_frame_num = (prev_ref_frame_num_ + 1) % max_frame_num;
         while (unused_short_term_frame_num != p_slice_header->frame_num) {
+            // Jefftest
+            printf("unused_short_term_frame_num = %d\n", unused_short_term_frame_num);
             AvcPicture non_existing_pic = {0};
             non_existing_pic.frame_num = unused_short_term_frame_num;
             non_existing_pic.is_reference = kUsedForShortTerm;
@@ -1957,6 +1960,29 @@ ParserResult AvcVideoParser::DecodeFrameNumGaps() {
                 }
             }
 
+            // Jefftest
+            int dec_buf_index;
+            if (non_existing_pic.pic_structure == kFrame || !second_field_) {
+                // Find a free buffer in decode buffer pool
+                for (dec_buf_index = 0; dec_buf_index < dec_buf_pool_size_; dec_buf_index++) {
+                    if (decode_buffer_pool_[dec_buf_index].dec_use_status == 0 && decode_buffer_pool_[dec_buf_index].disp_use_status == 0) {
+                        break;
+                    }
+                }
+                if (dec_buf_index == dec_buf_pool_size_) {
+                    ERR("Could not find a free buffer in decode buffer pool.");
+                    return PARSER_NOT_FOUND;
+                }
+
+                non_existing_pic.dec_buf_idx = dec_buf_index;
+                if ( non_existing_pic.pic_structure != kFrame) {
+                        first_field_dec_buf_idx_ = dec_buf_index;
+                }
+            } else {
+                non_existing_pic.dec_buf_idx = first_field_dec_buf_idx_;
+            }
+            //non_existing_pic.dec_buf_idx = 0xFF;
+
             for (i = 0; i < dpb_buffer_.dpb_size; i++) {
                 if (dpb_buffer_.frame_buffer_list[i].use_status == 0) {
                     break;
@@ -1972,6 +1998,11 @@ ParserResult AvcVideoParser::DecodeFrameNumGaps() {
                 ERR("Could not find any free frame buffer in DPB.");
                 return PARSER_FAIL;
             }
+
+            // Jefftest
+            // Mark as used in decode buffer pool
+            decode_buffer_pool_[non_existing_pic.dec_buf_idx].dec_use_status = 3;
+            decode_buffer_pool_[non_existing_pic.dec_buf_idx].pic_order_cnt = non_existing_pic.pic_order_cnt;
 
             // Update prev_ref_frame_num_ to value of frame_num for the last of the "non-existing" reference frames inferred 
             // by the decoding process for gaps in frame_num specified in clause 8.2.5.2.
@@ -3044,6 +3075,8 @@ ParserResult AvcVideoParser::BumpPicFromDpb() {
     }
     // Remove it from DPB and mark unused for decode in decode buffer pool
     dpb_buffer_.frame_buffer_list[min_poc_pic_idx_no_ref].use_status = 0;
+    // Jefftest
+    //if (dpb_buffer_.frame_buffer_list[min_poc_pic_idx_no_ref].dec_buf_idx != 0xFF)
     decode_buffer_pool_[dpb_buffer_.frame_buffer_list[min_poc_pic_idx_no_ref].dec_buf_idx].dec_use_status = 0;
     if (dpb_buffer_.dpb_fullness > 0 ) {
         dpb_buffer_.dpb_fullness--;
@@ -3152,6 +3185,8 @@ ParserResult AvcVideoParser::FlushDpb() {
         dpb_buffer_.frame_buffer_list[i].use_status = 0;
         dpb_buffer_.field_pic_list[i * 2].use_status = 0;
         dpb_buffer_.field_pic_list[i * 2 + 1].use_status = 0;
+        // Jefftest
+        //if (dpb_buffer_.frame_buffer_list[i].dec_buf_idx != 0xFF) {
         decode_buffer_pool_[dpb_buffer_.frame_buffer_list[i].dec_buf_idx].dec_use_status = 0;
         decode_buffer_pool_[dpb_buffer_.frame_buffer_list[i].dec_buf_idx].disp_use_status = 0;
     }
