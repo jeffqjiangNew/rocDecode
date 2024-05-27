@@ -98,11 +98,11 @@ rocDecStatus AvcVideoParser::ParseVideoData(RocdecSourceDataPacket *p_data) {
         }
 
         // Output decoded pictures from DPB if any are ready in case of frame_num gaps.
-        if (pfn_display_picture_cb_ && num_output_pics_ > 0) {
+        /* Jefftest if (pfn_display_picture_cb_ && num_output_pics_ > 0) {
             if (OutputDecodedPictures(false) != PARSER_OK) {
                 return ROCDEC_RUNTIME_ERROR;
             }
-        }
+        }*/
 
         // Decode the picture
         if (SendPicForDecode() != PARSER_OK) {
@@ -484,6 +484,7 @@ ParserResult AvcVideoParser::SendPicForDecode() {
     }
     p_pic_param->curr_pic.top_field_order_cnt = curr_pic_.top_field_order_cnt;
     p_pic_param->curr_pic.bottom_field_order_cnt = curr_pic_.bottom_field_order_cnt;
+    printf("Curr pic: POC = %d, surface ID = %d\n", curr_pic_.pic_order_cnt, curr_pic_.dec_buf_idx); // Jefftest
 
     // Reference pictures
     int buf_index = 0;
@@ -1207,6 +1208,19 @@ ParserResult AvcVideoParser::ParseSliceHeader(uint8_t *p_stream, size_t stream_s
         dpb_buffer_.dpb_size = p_sps->max_num_ref_frames + 1;
         dpb_buffer_.dpb_size = dpb_buffer_.dpb_size > AVC_MAX_DPB_FRAMES ? AVC_MAX_DPB_FRAMES : dpb_buffer_.dpb_size;
         new_sps_activated_ = true;  // Note: clear this flag after the actions are taken.
+    }
+
+    // Jefftest2
+    // If frame_num gap is enabled, adjust decode buffer pool size and disable display delay
+    if ( new_sps_activated_ && p_sps->gaps_in_frame_num_value_allowed_flag) {
+        parser_params_.max_display_delay = 0;
+        int new_dec_buf_pool_size = AVC_MAX_DPB_FRAMES + 10;
+        if ( dec_buf_pool_size_ < new_dec_buf_pool_size) {
+            dec_buf_pool_size_ = new_dec_buf_pool_size;
+            decode_buffer_pool_.resize(dec_buf_pool_size_, {0});
+            output_pic_list_.resize(dec_buf_pool_size_, 0xFF);
+            InitDecBufPool();
+        }
     }
 
     // Set frame rate if available
@@ -1960,7 +1974,7 @@ ParserResult AvcVideoParser::DecodeFrameNumGaps() {
                 }
             }
 
-            // Jefftest
+
             int dec_buf_index;
             if (non_existing_pic.pic_structure == kFrame || !second_field_) {
                 // Find a free buffer in decode buffer pool
@@ -1981,7 +1995,7 @@ ParserResult AvcVideoParser::DecodeFrameNumGaps() {
             } else {
                 non_existing_pic.dec_buf_idx = first_field_dec_buf_idx_;
             }
-            //non_existing_pic.dec_buf_idx = 0xFF;
+
 
             for (i = 0; i < dpb_buffer_.dpb_size; i++) {
                 if (dpb_buffer_.frame_buffer_list[i].use_status == 0) {
@@ -1999,7 +2013,7 @@ ParserResult AvcVideoParser::DecodeFrameNumGaps() {
                 return PARSER_FAIL;
             }
 
-            // Jefftest
+
             // Mark as used in decode buffer pool
             decode_buffer_pool_[non_existing_pic.dec_buf_idx].dec_use_status = 3;
             decode_buffer_pool_[non_existing_pic.dec_buf_idx].pic_order_cnt = non_existing_pic.pic_order_cnt;
@@ -2595,6 +2609,7 @@ ParserResult AvcVideoParser::CheckDpbAndOutput() {
     // Output decoded pictures from DPB if any are ready
     if (pfn_display_picture_cb_ && num_output_pics_ > 0) {
         if (OutputDecodedPictures(false) != PARSER_OK) {
+
             return PARSER_FAIL;
         }
     }
@@ -3075,8 +3090,6 @@ ParserResult AvcVideoParser::BumpPicFromDpb() {
     }
     // Remove it from DPB and mark unused for decode in decode buffer pool
     dpb_buffer_.frame_buffer_list[min_poc_pic_idx_no_ref].use_status = 0;
-    // Jefftest
-    //if (dpb_buffer_.frame_buffer_list[min_poc_pic_idx_no_ref].dec_buf_idx != 0xFF)
     decode_buffer_pool_[dpb_buffer_.frame_buffer_list[min_poc_pic_idx_no_ref].dec_buf_idx].dec_use_status = 0;
     if (dpb_buffer_.dpb_fullness > 0 ) {
         dpb_buffer_.dpb_fullness--;
@@ -3185,8 +3198,6 @@ ParserResult AvcVideoParser::FlushDpb() {
         dpb_buffer_.frame_buffer_list[i].use_status = 0;
         dpb_buffer_.field_pic_list[i * 2].use_status = 0;
         dpb_buffer_.field_pic_list[i * 2 + 1].use_status = 0;
-        // Jefftest
-        //if (dpb_buffer_.frame_buffer_list[i].dec_buf_idx != 0xFF) {
         decode_buffer_pool_[dpb_buffer_.frame_buffer_list[i].dec_buf_idx].dec_use_status = 0;
         decode_buffer_pool_[dpb_buffer_.frame_buffer_list[i].dec_buf_idx].disp_use_status = 0;
     }
@@ -3426,12 +3437,12 @@ void AvcVideoParser::PrintDpb() {
         MSG("Frame buffer " << i << ": pic_idx = " << p_buf->pic_idx << ", dec_buf_idx = " << p_buf->dec_buf_idx << ", pic_structure = " << p_buf->pic_structure << ", pic_order_cnt = " << p_buf->pic_order_cnt << ", top_field_order_cnt = " << p_buf->top_field_order_cnt << ", bottom_field_order_cnt = " << p_buf->bottom_field_order_cnt << ", frame_num = " << p_buf->frame_num << ", frame_num_wrap = " << p_buf->frame_num_wrap << ", pic_num = " << p_buf->pic_num << ", long_term_pic_num = " << p_buf->long_term_pic_num << ", long_term_frame_idx = " << p_buf->long_term_frame_idx << ", is_reference = " << p_buf->is_reference << ", use_status = " << p_buf->use_status << ", pic_output_flag = " << p_buf->pic_output_flag);
     }
     MSG("");
-    MSG("Field picture store:");
+    /* Jefftest MSG("Field picture store:");
     for (i = 0; i < AVC_MAX_DPB_FIELDS; i++) {
         AvcPicture *p_buf = &dpb_buffer_.field_pic_list[i];
         MSG("Field picture " << i << ": pic_idx = " << p_buf->pic_idx << ", pic_structure = " << p_buf->pic_structure << ", pic_order_cnt = " << p_buf->pic_order_cnt << ", top_field_order_cnt = " << p_buf->top_field_order_cnt << ", bottom_field_order_cnt = " << p_buf->bottom_field_order_cnt << ", frame_num = " << p_buf->frame_num << ", frame_num_wrap = " << p_buf->frame_num_wrap << ", pic_num = " << p_buf->pic_num << ", long_term_pic_num = " << p_buf->long_term_pic_num << ", long_term_frame_idx = " << p_buf->long_term_frame_idx << ", is_reference = " << p_buf->is_reference << ", use_status = " << p_buf->use_status << ", pic_output_flag = " << p_buf->pic_output_flag);
     }
-    MSG("");
+    MSG("");*/
 
 
     MSG("Decode buffer pool:");
