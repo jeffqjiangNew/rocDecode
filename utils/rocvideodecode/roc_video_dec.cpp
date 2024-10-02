@@ -699,19 +699,23 @@ int RocVideoDecoder::HandlePictureDisplay(RocdecParserDispInfo *pDispInfo) {
             sei_message_display_q_[pDispInfo->picture_index].sei_message = NULL; // to avoid double free
         }
     }
+    // Jefftest
+    //auto start_time = std::chrono::high_resolution_clock::now();
     if (out_mem_type_ != OUT_SURFACE_MEM_NOT_MAPPED) {
         void * src_dev_ptr[3] = { 0 };
         uint32_t src_pitch[3] = { 0 };
+        /* Jefftest
         ROCDEC_API_CALL(rocDecGetVideoFrame(roc_decoder_, pDispInfo->picture_index, src_dev_ptr, src_pitch, &video_proc_params));
         RocdecDecodeStatus dec_status;
         memset(&dec_status, 0, sizeof(dec_status));
         rocDecStatus result = rocDecGetDecodeStatus(roc_decoder_, pDispInfo->picture_index, &dec_status);
         if (result == ROCDEC_SUCCESS && (dec_status.decode_status == rocDecodeStatus_Error || dec_status.decode_status == rocDecodeStatus_Error_Concealed)) {
             std::cerr << "Decode Error occurred for picture: " << pic_num_in_dec_order_[pDispInfo->picture_index] << std::endl;
-        }
+        }*/
         if (out_mem_type_ == OUT_SURFACE_MEM_DEV_INTERNAL) {
             DecFrameBuffer dec_frame = { 0 };
-            dec_frame.frame_ptr = (uint8_t *)(src_dev_ptr[0]);
+            // Jefftest 
+            //dec_frame.frame_ptr = (uint8_t *)(src_dev_ptr[0]);
             dec_frame.pts = pDispInfo->pts;
             dec_frame.picture_index = pDispInfo->picture_index;
             std::lock_guard<std::mutex> lock(mtx_vp_frame_);
@@ -794,6 +798,12 @@ int RocVideoDecoder::HandlePictureDisplay(RocdecParserDispInfo *pDispInfo) {
         }
         output_frame_cnt_++;
     }
+    // Jefftest
+    /*auto end_time = std::chrono::high_resolution_clock::now();
+    auto time_per_disp = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+    total_disp_time_ += time_per_disp;
+    disp_pic_cnt_++;
+    printf("Average disp time = %f\n", total_disp_time_/disp_pic_cnt_);*/
 
     return 1;
 }
@@ -858,6 +868,21 @@ uint8_t* RocVideoDecoder::GetFrame(int64_t *pts) {
         output_frame_cnt_--;
         if (out_mem_type_ == OUT_SURFACE_MEM_DEV_INTERNAL && !vp_frames_q_.empty()) {
             DecFrameBuffer *fb = &vp_frames_q_.front();
+            // Jefftest
+            void * src_dev_ptr[3] = { 0 };
+            uint32_t src_pitch[3] = { 0 };
+            RocdecProcParams video_proc_params = {};
+            video_proc_params.progressive_frame = 1;
+            video_proc_params.top_field_first = 1;
+            ROCDEC_API_CALL(rocDecGetVideoFrame(roc_decoder_, fb->picture_index, src_dev_ptr, src_pitch, &video_proc_params));
+            RocdecDecodeStatus dec_status;
+            memset(&dec_status, 0, sizeof(dec_status));
+            rocDecStatus result = rocDecGetDecodeStatus(roc_decoder_, fb->picture_index, &dec_status);
+            if (result == ROCDEC_SUCCESS && (dec_status.decode_status == rocDecodeStatus_Error || dec_status.decode_status == rocDecodeStatus_Error_Concealed)) {
+                std::cerr << "Decode Error occurred for picture: " << pic_num_in_dec_order_[fb->picture_index] << std::endl;
+            }
+            fb->frame_ptr = (uint8_t *)(src_dev_ptr[0]);
+
             if (pts) *pts = fb->pts;
             return fb->frame_ptr;
         } else if (vp_frames_.size() > 0){

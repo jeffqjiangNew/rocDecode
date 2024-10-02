@@ -482,6 +482,10 @@ class RocVideoDecoder {
         RocdecVideoFormat *curr_video_format_ptr_ = nullptr;
         int output_frame_cnt_ = 0, output_frame_cnt_ret_ = 0;
         int decoded_pic_cnt_ = 0;
+        // Jefftest
+        int disp_pic_cnt_ = 0;
+        double total_disp_time_= 0.0;
+        
         int decode_poc_ = 0, pic_num_in_dec_order_[MAX_FRAME_NUM];
         int num_alloced_frames_ = 0;
         int last_decode_surf_idx_ = 0;
