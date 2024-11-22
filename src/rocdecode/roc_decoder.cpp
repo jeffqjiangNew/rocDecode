@@ -44,6 +44,7 @@ RocDecoder::RocDecoder(RocDecoderCreateInfo& decoder_create_info): va_video_deco
  }
 
  rocDecStatus RocDecoder::InitializeDecoder() {
+    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     rocDecStatus rocdec_status = ROCDEC_SUCCESS;
     rocdec_status = InitHIP(decoder_create_info_.device_id);
     if (rocdec_status != ROCDEC_SUCCESS) {
@@ -65,6 +66,10 @@ RocDecoder::RocDecoder(RocDecoderCreateInfo& decoder_create_info): va_video_deco
         return rocdec_status;
     }
 
+    // Jefftest
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    std::cout << "RocDecoder::InitializeDecoder() time: " << elapsed << " microseconds" << std::endl;
      return rocdec_status;
  }
 
@@ -189,6 +194,7 @@ rocDecStatus RocDecoder::FreeVideoFrame(int pic_idx) {
 
 
 rocDecStatus RocDecoder::InitHIP(int device_id) {
+    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     CHECK_HIP(hipGetDeviceCount(&num_devices_));
     if (num_devices_ < 1) {
         ERR("Didn't find any GPU.");
@@ -196,6 +202,10 @@ rocDecStatus RocDecoder::InitHIP(int device_id) {
     }
     CHECK_HIP(hipSetDevice(device_id));
     CHECK_HIP(hipGetDeviceProperties(&hip_dev_prop_, device_id));
+    // Jefftest
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    std::cout << "RocDecoder::InitHIP() time: " << elapsed << " microseconds" << std::endl;
 
     return ROCDEC_SUCCESS;
 }

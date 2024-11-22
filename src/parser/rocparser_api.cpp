@@ -34,6 +34,7 @@ rocDecCreateVideoParser(RocdecVideoParser *parser_handle, RocdecParserParams *pa
         return ROCDEC_INVALID_PARAMETER;
     }
 
+    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     if (parser_params->codec_type != rocDecVideoCodec_HEVC &&
         parser_params->codec_type != rocDecVideoCodec_AVC &&
         parser_params->codec_type != rocDecVideoCodec_VP9 &&
@@ -51,6 +52,10 @@ rocDecCreateVideoParser(RocdecVideoParser *parser_handle, RocdecParserParams *pa
         return ROCDEC_RUNTIME_ERROR;
     }
     *parser_handle = handle;
+    // Jefftest
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    std::cout << "rocDecCreateVideoParser time: " << elapsed << " microseconds" << std::endl;
     return rocDecStatus::ROCDEC_SUCCESS;
 }
 

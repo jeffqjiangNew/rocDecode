@@ -45,6 +45,7 @@ private:
     std::shared_ptr<RocVideoParser> roc_parser_ = nullptr;
     void ClearErrors() { error_ = ""; }
     void CreateParser(RocdecParserParams *params) {
+        auto start = std::chrono::high_resolution_clock::now(); // Jefftest
         switch(params->codec_type) {
             case rocDecVideoCodec_AVC:
                 roc_parser_ = std::make_shared<AvcVideoParser>();
@@ -68,6 +69,10 @@ private:
             if (ret != ROCDEC_SUCCESS)
                 THROW("rocParser Initialization failed with error: "+ TOSTR(ret));
         }
+        // Jefftest
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "CreateParser time: " << elapsed << " microseconds" << std::endl;
     }
     rocDecStatus DestroyParserInternal() {
       rocDecStatus ret = ROCDEC_NOT_INITIALIZED;
