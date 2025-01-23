@@ -13,6 +13,7 @@ access the video decoding features available on your GPU.
 * H.265 (HEVC) - 8 bit, and 10 bit
 * H.264 (AVC) - 8 bit
 * AV1 - 8 bit, and 10 bit
+* VP9 - 8 bit, and 10 bit
 
 ## Prerequisites
 
@@ -58,11 +59,18 @@ access the video decoding features available on your GPU.
   sudo apt install pkg-config
   ```
 
-* [FFmpeg](https://ffmpeg.org/about.html) runtime and headers - for tests and samples
+* [FFmpeg](https://github.com/FFmpeg/FFmpeg) libraries and headers:
+  * `libavcodec` - provides implementation of a wider range of codecs.
+  * `libavformat` - implements streaming protocols, container formats and basic I/O access.
+  * `libavutil` - includes hashers, decompressors and miscellaneous utility functions.
+
+> [!NOTE]
+> FFmpeg libraries are used in samples and tests
 
   ```shell
-  sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev
+  sudo apt install libavcodec-dev libavformat-dev libavutil-dev
   ```
+
 
 > [!IMPORTANT] 
 > * On `Ubuntu 22.04` - Additional package required: `libstdc++-12-dev`
@@ -201,7 +209,7 @@ FFmpeg, refer to the instructions listed for your operating system:
 * Ubuntu:
 
   ```shell
-  sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev
+  sudo apt install libavcodec-dev libavformat-dev libavutil-dev
   ```
 
 * RHEL/SLES:
@@ -223,4 +231,4 @@ You can find rocDecode Docker containers in our
 * libva-amdgpu-dev - `2.16.0`
 * mesa-amdgpu-va-drivers - `1:24.3.0`
 * FFmpeg - `4.4.2` / `6.1.1`
-* rocDecode Setup Script - `V2.4.0`
+* rocDecode Setup Script - `V2.5.0`

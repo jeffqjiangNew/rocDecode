@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2023 - 2024 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2023 - 2025 Advanced Micro Devices, Inc. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -46,11 +46,6 @@ RocDecoder::RocDecoder(RocDecoderCreateInfo& decoder_create_info): va_video_deco
  rocDecStatus RocDecoder::InitializeDecoder() {
     auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     rocDecStatus rocdec_status = ROCDEC_SUCCESS;
-    rocdec_status = InitHIP(decoder_create_info_.device_id);
-    if (rocdec_status != ROCDEC_SUCCESS) {
-        ERR("Failed to initilize the HIP.");
-        return rocdec_status;
-    }
     if (decoder_create_info_.num_decode_surfaces < 1) {
         ERR("Invalid number of decode surfaces.");
         return ROCDEC_INVALID_PARAMETER;
@@ -59,8 +54,7 @@ RocDecoder::RocDecoder(RocDecoderCreateInfo& decoder_create_info): va_video_deco
     for (auto i = 0; i < hip_interop_.size(); i++) {
         memset((void *)&hip_interop_[i], 0, sizeof(hip_interop_[i]));
     }
-
-    rocdec_status = va_video_decoder_.InitializeDecoder(hip_dev_prop_.name, hip_dev_prop_.gcnArchName);
+    rocdec_status = va_video_decoder_.InitializeDecoder();
     if (rocdec_status != ROCDEC_SUCCESS) {
         ERR("Failed to initilize the VAAPI Video decoder.");
         return rocdec_status;
@@ -188,24 +182,6 @@ rocDecStatus RocDecoder::FreeVideoFrame(int pic_idx) {
         CHECK_HIP(hipDestroyExternalMemory(hip_interop_[pic_idx].hip_ext_mem));
 
     memset((void *)&hip_interop_[pic_idx], 0, sizeof(hip_interop_[pic_idx]));
-
-    return ROCDEC_SUCCESS;
-}
-
-
-rocDecStatus RocDecoder::InitHIP(int device_id) {
-    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
-    CHECK_HIP(hipGetDeviceCount(&num_devices_));
-    if (num_devices_ < 1) {
-        ERR("Didn't find any GPU.");
-        return ROCDEC_DEVICE_INVALID;
-    }
-    CHECK_HIP(hipSetDevice(device_id));
-    CHECK_HIP(hipGetDeviceProperties(&hip_dev_prop_, device_id));
-    // Jefftest
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "RocDecoder::InitHIP() time: " << elapsed << " microseconds" << std::endl;
 
     return ROCDEC_SUCCESS;
 }

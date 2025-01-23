@@ -11,7 +11,7 @@ The video decode sample illustrates decoding a single packetized video stream us
     * On `Ubuntu`
 
   ```shell
-  sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev
+  sudo apt install libavcodec-dev libavformat-dev libavutil-dev
   ```
   
     * On `RHEL`/`SLES` - install ffmpeg development packages manually or use [rocDecode-setup.py](../../rocDecode-setup.py) script
@@ -38,4 +38,5 @@ make -j
               -md5_check MD5_File_Path <generate MD5 message digest on the decoded YUV image sequence and compare to the reference MD5 string in a file [optional]>
               -crop <crop rectangle for output (not used when using interopped decoded frame) [optional - default: 0,0,0,0]>
               -m <output_surface_memory_type - decoded surface memory [optional - default: 0][0 : OUT_SURFACE_MEM_DEV_INTERNAL/ 1 : OUT_SURFACE_MEM_DEV_COPIED/ 2 : OUT_SURFACE_MEM_HOST_COPIED/3 : OUT_SURFACE_MEM_NOT_MAPPED]>
+              -no_ffmpeg_demux <use the built-in bitstream reader instead of FFMPEG demuxer to obtain picture data [optional]>
 ```

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2023 - 2024 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2023 - 2025 Advanced Micro Devices, Inc. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -107,6 +107,9 @@ typedef enum rocDecVideoSurfaceFormat_enum {
     rocDecVideoSurfaceFormat_YUV444 = 2,       /**< Planar YUV [Y plane followed by U and V planes] */
     rocDecVideoSurfaceFormat_YUV444_16Bit = 3, /**< 16 bit Planar YUV [Y plane followed by U and V planes].
                                                 Can be used for 10 bit(6LSB bits 0), 12 bit (4LSB bits 0) */
+    rocDecVideoSurfaceFormat_YUV420 = 4,       /**< Planar YUV [Y plane followed by U and V planes in 4:2:0 format] */
+    rocDecVideoSurfaceFormat_YUV420_16Bit = 5, /**< 16 bit Planar YUV [Y plane followed by U and V planes in ].
+                                                Can be used for 10 bit(LSB), 12 bit (LSB) */
 } rocDecVideoSurfaceFormat;
 
 /**************************************************************************************************************/
@@ -1732,9 +1735,10 @@ extern rocDecStatus ROCDECAPI rocDecReconfigureDecoder(rocDecDecoderHandle decod
 //! \ingroup group_amd_rocdecode
 //! Post-process and map video frame corresponding to pic_idx for use in HIP. Returns HIP device pointer and associated
 //! pitch(horizontal stride) of the video frame. Returns device memory pointers and pitch for each plane (Y, U and V) seperately
+//! horizontal_pitch is a pointer to an unsigned 32-bit integer array of size 3.
 /************************************************************************************************************************/
 extern rocDecStatus ROCDECAPI rocDecGetVideoFrame(rocDecDecoderHandle decoder_handle, int pic_idx,
-                                                    void *dev_mem_ptr[3], uint32_t (&horizontal_pitch)[3],
+                                                    void *dev_mem_ptr[3], uint32_t *horizontal_pitch,
                                                     RocdecProcParams *vid_postproc_params);
 
 /*****************************************************************************************************/

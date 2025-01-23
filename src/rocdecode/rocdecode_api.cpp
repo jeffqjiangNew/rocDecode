@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2023 - 2024 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2023 - 2025 Advanced Micro Devices, Inc. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,10 @@ THE SOFTWARE.
 */
 #include "dec_handle.h"
 #include "rocdecode.h"
-#include "roc_decoder_caps.h"
+#include "vaapi_videodecoder.h"
 #include "../commons.h"
 
-
+namespace rocdecode {
 /*****************************************************************************************************/
 //! \fn rocDecStatus ROCDECAPI rocDecCreateDecoder(rocDecDecoderHandle *decoder_handle, RocDecoderCreateInfo *decoder_create_info)
 //! Create the decoder object based on decoder_create_info. A handle to the created decoder is returned
@@ -72,30 +72,14 @@ rocDecGetDecoderCaps(RocdecDecodeCaps *pdc) {
     if (pdc == nullptr) {
         return ROCDEC_INVALID_PARAMETER;
     }
-    hipError_t hip_status = hipSuccess;
-    int num_devices = 0;
-    hipDeviceProp_t hip_dev_prop;
-    hip_status = hipGetDeviceCount(&num_devices);
-    if (hip_status != hipSuccess) {
-        ERR("ERROR: hipGetDeviceCount failed!" + TOSTR(hip_status));
-        return ROCDEC_DEVICE_INVALID;
+    VaContext& va_ctx = VaContext::GetInstance();
+    rocDecStatus ret = ROCDEC_SUCCESS;
+    if ((ret = va_ctx.CheckDecCapForCodecType(pdc)) != ROCDEC_SUCCESS) {
+        ERR("Failed to obtain decoder capabilities from driver.");
+        return ret;
+    } else {
+        return ROCDEC_SUCCESS;
     }
-    if (num_devices < 1) {
-        ERR("ERROR: didn't find any GPU!");
-        return ROCDEC_DEVICE_INVALID;
-    }
-    if (pdc->device_id >= num_devices) {
-        ERR("ERROR: the requested device_id is not found! ");
-        return ROCDEC_DEVICE_INVALID;
-    }
-    hip_status = hipGetDeviceProperties(&hip_dev_prop, pdc->device_id);
-    if (hip_status != hipSuccess) {
-        ERR("ERROR: hipGetDeviceProperties for device (" +TOSTR(pdc->device_id) + " ) failed! (" + TOSTR(hip_status) + ")" );
-        return ROCDEC_DEVICE_INVALID;
-    }
-
-    RocDecVcnCodecSpec& vcn_codec_spec = RocDecVcnCodecSpec::GetInstance();
-    return vcn_codec_spec.GetDecoderCaps(hip_dev_prop.gcnArchName, pdc);
 }
 
 /*****************************************************************************************************/
@@ -176,7 +160,7 @@ rocDecReconfigureDecoder(rocDecDecoderHandle decoder_handle, RocdecReconfigureDe
 /************************************************************************************************************************/
 rocDecStatus ROCDECAPI 
 rocDecGetVideoFrame(rocDecDecoderHandle decoder_handle, int pic_idx,
-                    void *dev_mem_ptr[3], uint32_t (&horizontal_pitch)[3], RocdecProcParams *vid_postproc_params) {
+                    void *dev_mem_ptr[3], uint32_t *horizontal_pitch, RocdecProcParams *vid_postproc_params) {
     if (decoder_handle == nullptr || dev_mem_ptr == nullptr || horizontal_pitch == nullptr || vid_postproc_params == nullptr) {
         return ROCDEC_INVALID_PARAMETER;
     }
@@ -220,3 +204,4 @@ const char* ROCDECAPI rocDecGetErrorName(rocDecStatus rocdec_status) {
             return "UNKNOWN_ERROR";
     }
 }
+} //namespace rocdecode
