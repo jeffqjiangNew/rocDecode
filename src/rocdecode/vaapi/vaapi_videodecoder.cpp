@@ -802,6 +802,7 @@ rocDecStatus VaContext::CheckDecCapForCodecType(RocdecDecodeCaps *dec_cap) {
 }
 
 rocDecStatus VaContext::InitHIP(int device_id, hipDeviceProp_t& hip_dev_prop) {
+    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     CHECK_HIP(hipGetDeviceCount(&num_devices_));
     if (num_devices_ < 1) {
         ERR("Didn't find any GPU.");
@@ -813,10 +814,15 @@ rocDecStatus VaContext::InitHIP(int device_id, hipDeviceProp_t& hip_dev_prop) {
     }   
     CHECK_HIP(hipSetDevice(device_id));
     CHECK_HIP(hipGetDeviceProperties(&hip_dev_prop, device_id));
+    // Jefftest
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    std::cout << "VaContext::InitHIP() time: " << elapsed << " microseconds" << std::endl;
     return ROCDEC_SUCCESS;
 }
 
 rocDecStatus VaContext::InitVAAPI(int va_ctx_idx, std::string drm_node) {
+    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     va_contexts_[va_ctx_idx].drm_fd = open(drm_node.c_str(), O_RDWR);
     if (va_contexts_[va_ctx_idx].drm_fd < 0) {
         ERR("Failed to open drm node." + drm_node);
@@ -830,6 +836,10 @@ rocDecStatus VaContext::InitVAAPI(int va_ctx_idx, std::string drm_node) {
     vaSetInfoCallback(va_contexts_[va_ctx_idx].va_display, NULL, NULL);
     int major_version = 0, minor_version = 0;
     CHECK_VAAPI(vaInitialize(va_contexts_[va_ctx_idx].va_display, &major_version, &minor_version));
+    // Jefftest
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    std::cout << "VaContext::InitVAAPI() time: " << elapsed << " microseconds" << std::endl;
     return ROCDEC_SUCCESS;
 }
 

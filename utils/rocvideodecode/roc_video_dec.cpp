@@ -1033,6 +1033,7 @@ bool RocVideoDecoder::GetOutputSurfaceInfo(OutputSurfaceInfo **surface_info) {
 }
 
 bool RocVideoDecoder::InitHIP(int device_id) {
+    //return true; // Jefftest
     auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     HIP_API_CALL(hipGetDeviceCount(&num_devices_));
     if (num_devices_ < 1) {
@@ -1041,7 +1042,7 @@ bool RocVideoDecoder::InitHIP(int device_id) {
     }
     HIP_API_CALL(hipSetDevice(device_id));
     HIP_API_CALL(hipGetDeviceProperties(&hip_dev_prop_, device_id));
-    HIP_API_CALL(hipStreamCreate(&hip_stream_));
+    // Jefftest HIP_API_CALL(hipStreamCreate(&hip_stream_));
     // Jefftest
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
