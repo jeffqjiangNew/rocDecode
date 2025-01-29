@@ -72,7 +72,7 @@ private:
         // Jefftest
         auto end = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        std::cout << "CreateParser time: " << elapsed << " microseconds" << std::endl;
+        std::cout << "<Profiling> CreateParser time: " << elapsed << " microseconds" << std::endl;
     }
     rocDecStatus DestroyParserInternal() {
       rocDecStatus ret = ROCDEC_NOT_INITIALIZED;

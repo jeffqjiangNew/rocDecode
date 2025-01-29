@@ -55,7 +55,7 @@ rocDecCreateVideoParser(RocdecVideoParser *parser_handle, RocdecParserParams *pa
     // Jefftest
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "rocDecCreateVideoParser time: " << elapsed << " microseconds" << std::endl;
+    std::cout << "<Profiling> rocDecCreateVideoParser() time: " << elapsed << " microseconds" << std::endl;
     return rocDecStatus::ROCDEC_SUCCESS;
 }
 

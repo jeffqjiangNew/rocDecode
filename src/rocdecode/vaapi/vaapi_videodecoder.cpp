@@ -817,7 +817,7 @@ rocDecStatus VaContext::InitHIP(int device_id, hipDeviceProp_t& hip_dev_prop) {
     // Jefftest
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "VaContext::InitHIP() time: " << elapsed << " microseconds" << std::endl;
+    std::cout << "<Profiling> VaContext::InitHIP() time: " << elapsed << " microseconds" << std::endl;
     return ROCDEC_SUCCESS;
 }
 
@@ -839,7 +839,7 @@ rocDecStatus VaContext::InitVAAPI(int va_ctx_idx, std::string drm_node) {
     // Jefftest
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "VaContext::InitVAAPI() time: " << elapsed << " microseconds" << std::endl;
+    std::cout << "<Profiling> VaContext::InitVAAPI() time: " << elapsed << " microseconds" << std::endl;
     return ROCDEC_SUCCESS;
 }
 

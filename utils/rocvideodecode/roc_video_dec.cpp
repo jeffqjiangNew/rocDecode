@@ -1042,11 +1042,12 @@ bool RocVideoDecoder::InitHIP(int device_id) {
     }
     HIP_API_CALL(hipSetDevice(device_id));
     HIP_API_CALL(hipGetDeviceProperties(&hip_dev_prop_, device_id));
-    // Jefftest HIP_API_CALL(hipStreamCreate(&hip_stream_));
+    // Jefftest 
+    HIP_API_CALL(hipStreamCreate(&hip_stream_));
     // Jefftest
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "RocVideoDecoder::InitHIP() time: " << elapsed << " microseconds" << std::endl;
+    std::cout << "<Profiling> RocVideoDecoder::InitHIP() time: " << elapsed << " microseconds" << std::endl;
     return true;
 }
 
