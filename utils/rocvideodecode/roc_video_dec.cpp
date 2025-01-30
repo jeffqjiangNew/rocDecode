@@ -1034,20 +1034,33 @@ bool RocVideoDecoder::GetOutputSurfaceInfo(OutputSurfaceInfo **surface_info) {
 
 bool RocVideoDecoder::InitHIP(int device_id) {
     //return true; // Jefftest
-    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
+    auto start_init_hip = StartTimer(); // Jefftest
+    //auto start = std::chrono::high_resolution_clock::now(); // Jefftest
     HIP_API_CALL(hipGetDeviceCount(&num_devices_));
     if (num_devices_ < 1) {
         std::cerr << "ERROR: didn't find any GPU!" << std::endl;
         return false;
     }
+    double elapsed = StopTimer(start_init_hip);
+    std::cout << "<Profiling> hipGetDeviceCount() time: " << elapsed << " ms" << std::endl;
+    auto start = StartTimer();
     HIP_API_CALL(hipSetDevice(device_id));
+    elapsed = StopTimer(start);
+    std::cout << "<Profiling> hipSetDevice() time: " << elapsed << " ms" << std::endl;
+    start = StartTimer();
     HIP_API_CALL(hipGetDeviceProperties(&hip_dev_prop_, device_id));
+    elapsed = StopTimer(start);
+    std::cout << "<Profiling> hipGetDeviceProperties() time: " << elapsed << " ms" << std::endl;
     // Jefftest 
+    start = StartTimer();
     HIP_API_CALL(hipStreamCreate(&hip_stream_));
+    elapsed = StopTimer(start);
+    std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;
     // Jefftest
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "<Profiling> RocVideoDecoder::InitHIP() time: " << elapsed << " microseconds" << std::endl;
+    //auto end_init_hip = std::chrono::high_resolution_clock::now();
+    //auto init_hip_time = std::chrono::duration<double, std::milli>(end_init_hip - start_init_hip).count();
+    double init_hip_time = StopTimer(start_init_hip);
+    std::cout << "<Profiling> RocVideoDecoder::InitHIP() time: " << init_hip_time << " ms" << std::endl;
     return true;
 }
 

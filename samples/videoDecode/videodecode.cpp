@@ -222,6 +222,11 @@ int main(int argc, char **argv) {
     }
 
     try {
+        // Jefftest
+        std::cout << "Profiling start ....." << std::endl;
+        auto init_start_time = std::chrono::high_resolution_clock::now();
+        auto demux_start_time = std::chrono::high_resolution_clock::now();
+
         std::size_t found_file = input_file_path.find_last_of('/');
         std::cout << "info: Input file: " << input_file_path.substr(found_file + 1) << std::endl;
         VideoDemuxer *demuxer;
@@ -253,6 +258,9 @@ int main(int argc, char **argv) {
                 return 1;
             }
         }
+        auto demux_end_time = std::chrono::high_resolution_clock::now();
+        auto demux_create_time = std::chrono::duration<double, std::milli>(demux_end_time - demux_start_time).count();
+        std::cout << "<Profiling> Demuxer create time = " << demux_create_time << " ms" << std::endl; // Jefftest
 
         RocVideoDecoder *viddec;
         VideoSeekContext video_seek_ctx;
@@ -312,6 +320,9 @@ int main(int argc, char **argv) {
             reconfig_user_struct.md5_generator_handle = static_cast<void*>(md5_generator);
         }
         viddec->SetReconfigParams(&reconfig_params);
+        auto init_end_time = std::chrono::high_resolution_clock::now();
+        auto init_time = std::chrono::duration<double, std::milli>(init_end_time - init_start_time).count();
+        std::cout << "<Profiling> Initialization time = " << init_time << " ms" << std::endl; // Jefftest
 
         do {
             auto start_time = std::chrono::high_resolution_clock::now();

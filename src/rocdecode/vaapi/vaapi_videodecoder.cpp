@@ -597,6 +597,8 @@ rocDecStatus VaContext::GetVaContext(int device_id, uint32_t *va_ctx_id) {
 }
 
 rocDecStatus VaContext::GetVaDisplay(uint32_t va_ctx_id, VADisplay *va_display) {
+    // Jefftest
+    auto start_get_disp = START_TIMER;
     if (va_ctx_id >= va_contexts_.size()) {
         ERR("Invalid VA context Id.");
         *va_display = 0;
@@ -609,8 +611,13 @@ rocDecStatus VaContext::GetVaDisplay(uint32_t va_ctx_id, VADisplay *va_display) 
         }
         vaSetInfoCallback(new_va_display, NULL, NULL);
         int major_version = 0, minor_version = 0;
+        auto start = START_TIMER;
         CHECK_VAAPI(vaInitialize(new_va_display, &major_version, &minor_version));
         *va_display = new_va_display;
+        auto elapsed = STOP_TIMER(start);
+        std::cout << "<Profiling> vaInitialize() time: " << elapsed << " ms" << std::endl;
+        elapsed = STOP_TIMER(start_get_disp);
+        std::cout << "<Profiling> GetVaDisplay() time: " << elapsed << " ms" << std::endl;
         return ROCDEC_SUCCESS;
     }
 }
@@ -802,44 +809,66 @@ rocDecStatus VaContext::CheckDecCapForCodecType(RocdecDecodeCaps *dec_cap) {
 }
 
 rocDecStatus VaContext::InitHIP(int device_id, hipDeviceProp_t& hip_dev_prop) {
-    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
+    auto start_init_hip = START_TIMER; // Jefftest std::chrono::high_resolution_clock::now(); // Jefftest
     CHECK_HIP(hipGetDeviceCount(&num_devices_));
     if (num_devices_ < 1) {
         ERR("Didn't find any GPU.");
         return ROCDEC_DEVICE_INVALID;
     }
+    auto elapsed = STOP_TIMER(start_init_hip);
+    std::cout << "<Profiling> hipGetDeviceCount() time: " << elapsed << " ms" << std::endl;
     if (device_id >= num_devices_) {
         ERR("ERROR: the requested device_id is not found! ");
         return ROCDEC_DEVICE_INVALID;
     }   
+    auto start = START_TIMER;
     CHECK_HIP(hipSetDevice(device_id));
+    elapsed = STOP_TIMER(start);
+    std::cout << "<Profiling> hipSetDevice() time: " << elapsed << " ms" << std::endl;
+    start = START_TIMER;
     CHECK_HIP(hipGetDeviceProperties(&hip_dev_prop, device_id));
+    elapsed = STOP_TIMER(start);
+    std::cout << "<Profiling> hipGetDeviceProperties() time: " << elapsed << " ms" << std::endl;
+
+    start = START_TIMER;
+    hipStream_t hip_stream;
+    CHECK_HIP(hipStreamCreate(&hip_stream));
+    elapsed = STOP_TIMER(start);
+    std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;
+
     // Jefftest
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "<Profiling> VaContext::InitHIP() time: " << elapsed << " microseconds" << std::endl;
+    elapsed = STOP_TIMER(start_init_hip);
+    std::cout << "<Profiling> VaContext::InitHIP() time: " << elapsed << " ms" << std::endl;
     return ROCDEC_SUCCESS;
 }
 
 rocDecStatus VaContext::InitVAAPI(int va_ctx_idx, std::string drm_node) {
-    auto start = std::chrono::high_resolution_clock::now(); // Jefftest
+    auto start_init_vaapi = START_TIMER; // std::chrono::high_resolution_clock::now(); // Jefftest
     va_contexts_[va_ctx_idx].drm_fd = open(drm_node.c_str(), O_RDWR);
     if (va_contexts_[va_ctx_idx].drm_fd < 0) {
         ERR("Failed to open drm node." + drm_node);
         return ROCDEC_NOT_INITIALIZED;
     }
+    auto start = START_TIMER;
     va_contexts_[va_ctx_idx].va_display = vaGetDisplayDRM(va_contexts_[va_ctx_idx].drm_fd);
+    auto elapsed = STOP_TIMER(start);
+    std::cout << "<Profiling> vaGetDisplayDRM() time: " << elapsed << " ms" << std::endl;
     if (!va_contexts_[va_ctx_idx].va_display) {
         ERR("Failed to create VA display.");
         return ROCDEC_NOT_INITIALIZED;
     }
+    start = START_TIMER;
     vaSetInfoCallback(va_contexts_[va_ctx_idx].va_display, NULL, NULL);
+    elapsed = STOP_TIMER(start);
+    std::cout << "<Profiling> vaSetInfoCallback() time: " << elapsed << " ms" << std::endl;
     int major_version = 0, minor_version = 0;
+    start = START_TIMER;
     CHECK_VAAPI(vaInitialize(va_contexts_[va_ctx_idx].va_display, &major_version, &minor_version));
+    elapsed = STOP_TIMER(start);
+    std::cout << "<Profiling> vaInitialize() time: " << elapsed << " ms" << std::endl;
     // Jefftest
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "<Profiling> VaContext::InitVAAPI() time: " << elapsed << " microseconds" << std::endl;
+    elapsed = STOP_TIMER(start_init_vaapi); // std::chrono::duration<double, std::milli>(end - start).count();
+    std::cout << "<Profiling> VaContext::InitVAAPI() time: " << elapsed << " ms" << std::endl;
     return ROCDEC_SUCCESS;
 }
 

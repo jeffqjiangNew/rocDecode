@@ -29,10 +29,12 @@ THE SOFTWARE.
 #define TOSTR(X) std::to_string(static_cast<int>(X))
 #define STR(X) std::string(X)
 
+// Jefftest
+//#define DBGINFO 1
 #if DBGINFO
-#define INFO(X) std::clog << "[INF] " << " {" << __func__ <<"} " << " " << X << std::endl;
-#define MSG(X) std::clog << X << std::endl;
-#define MSG_NO_NEWLINE(X) std::clog << X;
+#define INFO(X) std::cout << "[INF] " << " {" << __func__ <<"} " << " " << X << std::endl;
+#define MSG(X) std::cout << X << std::endl;
+#define MSG_NO_NEWLINE(X) std::cout << X;
 #else
 #define INFO(X) ;
 #define MSG(X) ;
@@ -53,3 +55,7 @@ private:
 };
 
 #define THROW(X) throw rocDecodeException(" { "+std::string(__func__)+" } " + X);
+
+
+#define START_TIMER std::chrono::_V2::system_clock::now()
+#define STOP_TIMER(start_time) std::chrono::duration<double, std::milli>(std::chrono::_V2::system_clock::now() - start_time).count()
