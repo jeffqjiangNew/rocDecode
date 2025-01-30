@@ -830,11 +830,11 @@ rocDecStatus VaContext::InitHIP(int device_id, hipDeviceProp_t& hip_dev_prop) {
     elapsed = STOP_TIMER(start);
     std::cout << "<Profiling> hipGetDeviceProperties() time: " << elapsed << " ms" << std::endl;
 
-    start = START_TIMER;
+    /*start = START_TIMER;
     hipStream_t hip_stream;
     CHECK_HIP(hipStreamCreate(&hip_stream));
     elapsed = STOP_TIMER(start);
-    std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;
+    std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;*/
 
     // Jefftest
     elapsed = STOP_TIMER(start_init_hip);
