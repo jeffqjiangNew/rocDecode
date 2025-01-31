@@ -597,24 +597,29 @@ rocDecStatus VaContext::GetVaContext(int device_id, uint32_t *va_ctx_id) {
 }
 
 rocDecStatus VaContext::GetVaDisplay(uint32_t va_ctx_id, VADisplay *va_display) {
-    // Jefftest
-    auto start_get_disp = START_TIMER;
     if (va_ctx_id >= va_contexts_.size()) {
         ERR("Invalid VA context Id.");
         *va_display = 0;
         return ROCDEC_INVALID_PARAMETER;
     } else {
+        // Jefftest
+        auto start_get_disp = START_TIMER;
         VADisplay new_va_display = vaGetDisplayDRM(va_contexts_[va_ctx_id].drm_fd);
+        auto elapsed = STOP_TIMER(start_get_disp);
+        std::cout << "<Profiling> vaGetDisplayDRM() time: " << elapsed << " ms" << std::endl;
         if (!new_va_display) {
             ERR("Failed to create VA display.");
             return ROCDEC_NOT_INITIALIZED;
         }
-        vaSetInfoCallback(new_va_display, NULL, NULL);
-        int major_version = 0, minor_version = 0;
         auto start = START_TIMER;
+        vaSetInfoCallback(new_va_display, NULL, NULL);
+        elapsed = STOP_TIMER(start);
+        std::cout << "<Profiling> vaSetInfoCallback() time: " << elapsed << " ms" << std::endl;
+        int major_version = 0, minor_version = 0;
+        start = START_TIMER;
         CHECK_VAAPI(vaInitialize(new_va_display, &major_version, &minor_version));
+        elapsed = STOP_TIMER(start);
         *va_display = new_va_display;
-        auto elapsed = STOP_TIMER(start);
         std::cout << "<Profiling> vaInitialize() time: " << elapsed << " ms" << std::endl;
         elapsed = STOP_TIMER(start_get_disp);
         std::cout << "<Profiling> GetVaDisplay() time: " << elapsed << " ms" << std::endl;
@@ -830,11 +835,11 @@ rocDecStatus VaContext::InitHIP(int device_id, hipDeviceProp_t& hip_dev_prop) {
     elapsed = STOP_TIMER(start);
     std::cout << "<Profiling> hipGetDeviceProperties() time: " << elapsed << " ms" << std::endl;
 
-    /*start = START_TIMER;
+    start = START_TIMER;
     hipStream_t hip_stream;
     CHECK_HIP(hipStreamCreate(&hip_stream));
     elapsed = STOP_TIMER(start);
-    std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;*/
+    std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;
 
     // Jefftest
     elapsed = STOP_TIMER(start_init_hip);
