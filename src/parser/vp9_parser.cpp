@@ -83,6 +83,7 @@ ParserResult Vp9VideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
 
     uint8_t *pic_data_ptr = const_cast<uint8_t*>(p_stream);
     for (int frame_index = 0; frame_index < num_frames_in_chunck_; frame_index++) {
+        printf("Frame %d: ----------------------------------------\n", pic_count_); // Jefftest
         if ((ret = ParseUncompressedHeader(pic_data_ptr, frame_sizes_[frame_index])) != PARSER_OK) {
             return ret;
         }
@@ -546,12 +547,17 @@ ParserResult Vp9VideoParser::ParseUncompressedHeader(uint8_t *p_stream, size_t s
 
     p_uncomp_header->header_size_in_bytes = Parser::ReadBits(p_stream, offset, 16);
 
-    if (pic_width_ != p_uncomp_header->frame_size.frame_width || pic_height_ != p_uncomp_header->frame_size.frame_height) {
+    // Jefftest 
+    //if (pic_width_ != p_uncomp_header->frame_size.frame_width || pic_height_ != p_uncomp_header->frame_size.frame_height) {
+    if (pic_width_ < p_uncomp_header->frame_size.frame_width || pic_height_ < p_uncomp_header->frame_size.frame_height) {
+        std::cout << "Video size change ..................." << std::endl; // Jefftest
         pic_width_ = p_uncomp_header->frame_size.frame_width;
         pic_height_ = p_uncomp_header->frame_size.frame_height;
         new_seq_activated_ = true;
     }
-
+    // Jefftest
+    pic_width_ = p_uncomp_header->frame_size.frame_width;
+    pic_height_ = p_uncomp_header->frame_size.frame_height;
     uncomp_header_size_ = (offset + 7) >> 3;
     return PARSER_OK;
 }
@@ -633,6 +639,11 @@ void Vp9VideoParser::RenderSize(const uint8_t *p_stream, size_t &offset, Vp9Unco
         p_uncomp_header->render_size.render_width = p_uncomp_header->frame_size.frame_width;
         p_uncomp_header->render_size.render_height = p_uncomp_header->frame_size.frame_height;
     }
+    // Jefftest
+    /*p_uncomp_header->render_size.render_width_minus_1 = p_uncomp_header->frame_size.frame_width_minus_1;
+        p_uncomp_header->render_size.render_height_minus_1 = p_uncomp_header->frame_size.frame_height_minus_1;
+        p_uncomp_header->render_size.render_width = p_uncomp_header->frame_size.frame_width;
+        p_uncomp_header->render_size.render_height = p_uncomp_header->frame_size.frame_height;*/
 }
 
 void Vp9VideoParser::FrameSizeWithRefs(const uint8_t *p_stream, size_t &offset, Vp9UncompressedHeader *p_uncomp_header) {

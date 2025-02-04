@@ -24,7 +24,8 @@ THE SOFTWARE.
 
 VaapiVideoDecoder::VaapiVideoDecoder(RocDecoderCreateInfo &decoder_create_info) : decoder_create_info_{decoder_create_info},
     drm_fd_{-1}, va_display_{0}, va_config_attrib_{{}}, va_config_id_{0}, va_profile_ {VAProfileNone}, va_context_id_{0}, va_surface_ids_{{}},
-    supports_modifiers_{false}, pic_params_buf_id_{0}, iq_matrix_buf_id_{0}, num_slices_{0}, slice_data_buf_id_{0} {
+    // Jefftest supports_modifiers_{false}, pic_params_buf_id_{0}, iq_matrix_buf_id_{0}, num_slices_{0}, slice_data_buf_id_{0} {
+    supports_modifiers_{false}, reconfigure_{false}, pic_params_buf_id_{0}, iq_matrix_buf_id_{0}, num_slices_{0}, slice_data_buf_id_{0} {
 };
 
 VaapiVideoDecoder::~VaapiVideoDecoder() {
@@ -110,6 +111,7 @@ rocDecStatus VaapiVideoDecoder::SubmitDecode(RocdecPicParams *pPicParams) {
         return ROCDEC_INVALID_PARAMETER;
     }
     curr_surface_id = va_surface_ids_[pPicParams->curr_pic_idx];
+    printf("SubmitDecode(): curr_surface_id = %d\n", curr_surface_id); // Jefftest
 
     // Upload data buffers
     switch (decoder_create_info_.codec_type) {
@@ -179,7 +181,13 @@ rocDecStatus VaapiVideoDecoder::SubmitDecode(RocdecPicParams *pPicParams) {
                         ERR("Reference frame index exceeded the VAAPI surface pool limit.");
                         return ROCDEC_INVALID_PARAMETER;
                     }
-                    pPicParams->pic_params.vp9.reference_frames[i] = va_surface_ids_[pPicParams->pic_params.vp9.reference_frames[i]];
+                    // Jefftest
+                    if (reconfigure_) {
+                        pPicParams->pic_params.vp9.reference_frames[i] = va_surface_ids_prev_[pPicParams->pic_params.vp9.reference_frames[i]];
+                    } else {
+                        pPicParams->pic_params.vp9.reference_frames[i] = va_surface_ids_[pPicParams->pic_params.vp9.reference_frames[i]];
+                    }
+                    printf("reference_frame %d id = %d\n", i, pPicParams->pic_params.vp9.reference_frames[i]); // Jefftest
                 }
             }
             pic_params_ptr = (void*)&pPicParams->pic_params.vp9;
@@ -309,6 +317,8 @@ rocDecStatus VaapiVideoDecoder::ExportSurface(int pic_idx, VADRMPRIMESurfaceDesc
     if (pic_idx >= va_surface_ids_.size()) {
         return ROCDEC_INVALID_PARAMETER;
     }
+    // Jefftest
+    printf("ExportSurface(): surface id = %d\n", va_surface_ids_[pic_idx]); // Jefftest
     CHECK_VAAPI(vaExportSurfaceHandle(va_display_, va_surface_ids_[pic_idx],
                 VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
                 VA_EXPORT_SURFACE_READ_ONLY |
@@ -338,8 +348,13 @@ rocDecStatus VaapiVideoDecoder::ReconfigureDecoder(RocdecReconfigureDecoderInfo 
         ERR("VAAPI decoder has not been initialized but reconfiguration of the decoder has been requested.");
         return ROCDEC_NOT_SUPPORTED;
     }
-    CHECK_VAAPI(vaDestroySurfaces(va_display_, va_surface_ids_.data(), va_surface_ids_.size()));
-    CHECK_VAAPI(vaDestroyContext(va_display_, va_context_id_));
+    // Jefftest
+    reconfigure_ = true;
+    va_surface_ids_prev_.assign(va_surface_ids_.begin(), va_surface_ids_.end());
+
+    // Jefftest CHECK_VAAPI(vaDestroySurfaces(va_display_, va_surface_ids_.data(), va_surface_ids_.size()));
+    // Jefftest 
+    //CHECK_VAAPI(vaDestroyContext(va_display_, va_context_id_));
 
     va_surface_ids_.clear();
     decoder_create_info_.width = reconfig_params->width;
@@ -353,11 +368,11 @@ rocDecStatus VaapiVideoDecoder::ReconfigureDecoder(RocdecReconfigureDecoderInfo 
         ERR("Failed to create VAAPI surfaces during the decoder reconfiguration.");
         return rocdec_status;
     }
-    rocdec_status = CreateContext();
+    /* Jefftest rocdec_status = CreateContext();
     if (rocdec_status != ROCDEC_SUCCESS) {
         ERR("Failed to create a VAAPI context during the decoder reconfiguration.");
         return rocdec_status;
-    }
+    }*/
     return rocdec_status;
 }
 
@@ -477,6 +492,12 @@ rocDecStatus VaapiVideoDecoder::CreateSurfaces() {
     }
     CHECK_VAAPI(vaCreateSurfaces(va_display_, surface_format, decoder_create_info_.width,
         decoder_create_info_.height, va_surface_ids_.data(), va_surface_ids_.size(), surf_attribs.data(), surf_attribs.size()));
+    // Jefftest
+    printf("CreateSurfaces(): width = %d, height = %d\n", decoder_create_info_.width, decoder_create_info_.height);
+    for (int i = 0; i < va_surface_ids_.size(); i++) {
+        printf("%d ", va_surface_ids_[i]);
+    }
+    printf("\n");
     return ROCDEC_SUCCESS;
 }
 
