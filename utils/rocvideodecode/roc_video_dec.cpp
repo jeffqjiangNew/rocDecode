@@ -1053,10 +1053,10 @@ bool RocVideoDecoder::InitHIP(int device_id) {
     // Jefftest 
     start = StartTimer();
     // Jefftest1
-    if (out_mem_type_ != OUT_SURFACE_MEM_DEV_INTERNAL) {
-        HIP_API_CALL(hipStreamCreate(&hip_stream_));
+    if (out_mem_type_ == OUT_SURFACE_MEM_DEV_INTERNAL || out_mem_type_ == OUT_SURFACE_MEM_NOT_MAPPED) {
+        hip_stream_ = 0; // Null stream. For internal device or unmapped memory, we don't need to create a hip stream.
     } else {
-        hip_stream_ = 0; // Null stream. For internal device memory, we don't need to create a hip stream.
+        HIP_API_CALL(hipStreamCreate(&hip_stream_));
     }
     elapsed = StopTimer(start);
     std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;
