@@ -1033,9 +1033,8 @@ bool RocVideoDecoder::GetOutputSurfaceInfo(OutputSurfaceInfo **surface_info) {
 }
 
 bool RocVideoDecoder::InitHIP(int device_id) {
-    //return true; // Jefftest
     auto start_init_hip = StartTimer(); // Jefftest
-    //auto start = std::chrono::high_resolution_clock::now(); // Jefftest
+    std::cout << "<Profiling> hipGetDeviceCount() start ..." << std::endl;
     HIP_API_CALL(hipGetDeviceCount(&num_devices_));
     if (num_devices_ < 1) {
         std::cerr << "ERROR: didn't find any GPU!" << std::endl;
@@ -1053,7 +1052,12 @@ bool RocVideoDecoder::InitHIP(int device_id) {
     std::cout << "<Profiling> hipGetDeviceProperties() time: " << elapsed << " ms" << std::endl;
     // Jefftest 
     start = StartTimer();
-    HIP_API_CALL(hipStreamCreate(&hip_stream_));
+    // Jefftest1
+    if (out_mem_type_ != OUT_SURFACE_MEM_DEV_INTERNAL) {
+        HIP_API_CALL(hipStreamCreate(&hip_stream_));
+    } else {
+        hip_stream_ = 0; // Null stream. For internal device memory, we don't need to create a hip stream.
+    }
     elapsed = StopTimer(start);
     std::cout << "<Profiling> hipStreamCreate() time: " << elapsed << " ms" << std::endl;
     // Jefftest
