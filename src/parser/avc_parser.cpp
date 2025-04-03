@@ -48,9 +48,15 @@ AvcVideoParser::AvcVideoParser() {
     first_field_dec_buf_idx_ = 0;
 
     InitDpb();
+
+    // Jefftest
+    fp_error_bs_ = fopen("error_stream.bit", "wb");
 }
 
 AvcVideoParser::~AvcVideoParser() {
+    // Jefftest
+    if (fp_error_bs_)
+        fclose(fp_error_bs_);
 }
 
 rocDecStatus AvcVideoParser::Initialize(RocdecParserParams *p_params) {
@@ -68,6 +74,8 @@ rocDecStatus AvcVideoParser::ParseVideoData(RocdecSourceDataPacket *p_data) {
             ERR(STR("Parser failed!"));
             return ROCDEC_RUNTIME_ERROR;
         }
+        // Jefftest
+        fwrite(p_data->payload, 1, p_data->payload_size, fp_error_bs_);
 
         // Init Roc decoder for the first time or reconfigure the existing decoder
         if (new_seq_activated_) {
@@ -161,6 +169,15 @@ ParserResult AvcVideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                     memcpy(rbsp_buf_, (pic_data_buffer_ptr_ + curr_start_code_offset_ + 4), ebsp_size);
                     rbsp_size_ = EbspToRbsp(rbsp_buf_, 0, ebsp_size);
                     ParseSps(rbsp_buf_, rbsp_size_);
+                    // Jefftest: corrupt SPS
+                    printf("Corrupting SPS ....\n");
+                    uint8_t *ptr = pic_data_buffer_ptr_ + curr_start_code_offset_ + 4;
+                    //for (int i = 3; i < nal_unit_size_ - 7; i++) {
+                        //ptr[i] &= 0x7f;
+                    //}
+                    ptr[3] &= 0xf1;
+                    ptr[4] &= 0x01;
+                    ptr[5] &= 0x01;
                     break;
                 }
 

@@ -141,6 +141,9 @@ protected:
     AvcPicture curr_pic_;
     DecodedPictureBuffer dpb_buffer_;
 
+    // Jefftes
+    FILE *fp_error_bs_;
+
     /*! \brief Function to notify decoder about video format change (new SPS) through callback
      * \param [in] p_sps Pointer to the current active SPS
      * \return <tt>ParserResult</tt>
