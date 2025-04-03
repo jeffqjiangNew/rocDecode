@@ -169,7 +169,8 @@ ParserResult AvcVideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                     memcpy(rbsp_buf_, (pic_data_buffer_ptr_ + curr_start_code_offset_ + 4), ebsp_size);
                     rbsp_size_ = EbspToRbsp(rbsp_buf_, 0, ebsp_size);
                     ParseSps(rbsp_buf_, rbsp_size_);
-                    // Jefftest: corrupt SPS
+                    // Jefftest
+                    #if 0
                     printf("Corrupting SPS ....\n");
                     uint8_t *ptr = pic_data_buffer_ptr_ + curr_start_code_offset_ + 4;
                     //for (int i = 3; i < nal_unit_size_ - 7; i++) {
@@ -178,6 +179,7 @@ ParserResult AvcVideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                     ptr[3] &= 0xf1;
                     ptr[4] &= 0x01;
                     ptr[5] &= 0x01;
+                    #endif
                     break;
                 }
 
@@ -187,6 +189,16 @@ ParserResult AvcVideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                     if ((ret2 = ParsePps(rbsp_buf_, rbsp_size_)) != PARSER_OK) {
                         return ret2;
                     }
+                    // Jefftest
+                    #if 1
+                    printf("Corrupting PPS ...\n");
+                    uint8_t *ptr = pic_data_buffer_ptr_ + curr_start_code_offset_ + 4;
+                    /*for (int i = 0; i < nal_unit_size_ - 4; i++) {
+                        ptr[i] &= 0xf7;
+                    }*/
+                    ptr[0] &= 0xf8;
+                    ptr[1] &= 0xf0;
+                    #endif
                     break;
                 }
                 
