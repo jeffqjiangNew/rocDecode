@@ -190,7 +190,7 @@ ParserResult AvcVideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                         return ret2;
                     }
                     // Jefftest
-                    #if 1
+                    #if 0
                     printf("Corrupting PPS ...\n");
                     uint8_t *ptr = pic_data_buffer_ptr_ + curr_start_code_offset_ + 4;
                     /*for (int i = 0; i < nal_unit_size_ - 4; i++) {
@@ -224,6 +224,15 @@ ParserResult AvcVideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                     if ((ret2 = ParseSliceHeader(rbsp_buf_, rbsp_size_, p_slice_header)) != PARSER_OK) {
                         return ret2;
                     }
+                    #if 1
+                    if (pic_count_ > 0 && pic_count_ < 3) {
+                        printf("Corruption slice header .....\n");
+                        uint8_t *ptr = pic_data_buffer_ptr_ + curr_start_code_offset_ + 4;
+                        for (int i = 0; i < 8; i++) {
+                            ptr[i] &= 0xf0;
+                        }
+                    }
+                    #endif
 
                     // Start decode process
                     if (num_slices_ == 0) {
