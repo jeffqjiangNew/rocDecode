@@ -227,11 +227,20 @@ ParserResult AvcVideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                         ERR("Error occurred in slice header parsing. This slice NAL unit is skipped.");
                         break;      // ignore and continue to next nal_unit
                     }
-                    #if 1
+                    #if 0
                     if (pic_count_ > 0 && pic_count_ < 3) {
-                        printf("Corruption slice header .....\n");
+                        printf("Corrupting slice header .....\n");
                         uint8_t *ptr = pic_data_buffer_ptr_ + curr_start_code_offset_ + 4;
                         for (int i = 0; i < 8; i++) {
+                            ptr[i] &= 0xf0;
+                        }
+                    }
+                    #endif
+                    #if 1
+                    if (pic_count_ > 2 && pic_count_ < 6) {
+                        printf("Corrupting slice header .....\n");
+                        uint8_t *ptr = pic_data_buffer_ptr_ + curr_start_code_offset_ + 4;
+                        for (int i = 20; i < 25; i++) {
                             ptr[i] &= 0xf0;
                         }
                     }
