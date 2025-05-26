@@ -31,15 +31,16 @@ else()
   set(ROCM_PATH /opt/rocm CACHE PATH "Default ROCm installation path")
 endif()
 # Set AMD Clang as default compiler
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED On)
+set(CMAKE_CXX_EXTENSIONS ON)
 if (NOT DEFINED CMAKE_CXX_COMPILER)
   set(CMAKE_C_COMPILER ${ROCM_PATH}/bin/amdclang)
   set(CMAKE_CXX_COMPILER ${ROCM_PATH}/bin/amdclang++)
 endif()
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED On)
 
-# NOTE: Match version with api/rocdecode_version.h
-set(VERSION "0.10.0")
+# rocDecode Version
+set(VERSION "0.13.2")
 
 # Set Project Version and Language
 project(rocdecode VERSION ${VERSION} LANGUAGES CXX)
@@ -80,7 +81,7 @@ message("-- ${BoldBlue}rocDecode Version -- ${VERSION}${ColourReset}")
 message("-- ${BoldBlue}rocDecode Install Path -- ${CMAKE_INSTALL_PREFIX}${ColourReset}")
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH} ${ROCM_PATH}/hip)
+list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH}/lib/cmake)
 
 # rocDecode Build Type
 if(NOT CMAKE_BUILD_TYPE)
@@ -104,6 +105,7 @@ option(ROCDECODE_ENABLE_ROCPROFILER_REGISTER "Enable rocprofiler-register suppor
 
 find_package(HIP QUIET)
 find_package(Libva QUIET)
+find_package(Libdrm_amdgpu QUIET)
 
 if(ROCDECODE_ENABLE_ROCPROFILER_REGISTER)
   find_package(rocprofiler-register QUIET
@@ -111,7 +113,7 @@ if(ROCDECODE_ENABLE_ROCPROFILER_REGISTER)
     PATHS ${ROCM_PATH})
 endif()
 
-if(HIP_FOUND AND Libva_FOUND)
+if(HIP_FOUND AND Libva_FOUND AND Libdrm_amdgpu_FOUND)
 
   # HIP
   set(LINK_LIBRARY_LIST ${LINK_LIBRARY_LIST} hip::host)
@@ -119,6 +121,10 @@ if(HIP_FOUND AND Libva_FOUND)
   include_directories(${LIBVA_INCLUDE_DIR})
   set(LINK_LIBRARY_LIST ${LINK_LIBRARY_LIST} ${LIBVA_LIBRARY})
   set(LINK_LIBRARY_LIST ${LINK_LIBRARY_LIST} ${LIBVA_DRM_LIBRARY})
+
+  # DRM_AMDGPU
+  include_directories(${LIBDRM_AMDGPU_INCLUDE_DIR})
+  set(LINK_LIBRARY_LIST ${LINK_LIBRARY_LIST} ${LIBDRM_AMDGPU_LIBRARY})
 
   # rocprofiler
   if (rocprofiler-register_FOUND)
@@ -132,7 +138,8 @@ if(HIP_FOUND AND Libva_FOUND)
   # rocdecode.so
   add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
+  # --all-warnings/-Wall       -- Enable most warning messages
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
   target_link_libraries(${PROJECT_NAME} ${LINK_LIBRARY_LIST})
 
   set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -151,12 +158,17 @@ if(HIP_FOUND AND Libva_FOUND)
       ROCDECODE_ROCP_REG_VERSION_PATCH=${VERSION_PATCH})
   endif()
 
+  #Generate BUILD_INFO
+  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/api/rocdecode_version.h.in ${CMAKE_CURRENT_BINARY_DIR}/rocdecode_version.h @ONLY )
+
   # install rocDecode libs -- {ROCM_PATH}/lib
   install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT runtime NAMELINK_SKIP)
-  install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dev NAMELINK_ONLY)
+  install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}-targets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dev NAMELINK_ONLY)
   install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT asan)
   # install rocDecode include files -- {ROCM_PATH}/include/rocdecode
-  install(FILES api/rocdecode.h api/rocparser.h api/roc_bitstream_reader.h api/rocdecode_version.h
+  install(FILES api/rocdecode/rocdecode.h api/rocdecode/rocparser.h api/rocdecode/roc_bitstream_reader.h
+          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME} COMPONENT dev)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/rocdecode_version.h
           DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME} COMPONENT dev)
   # install rocDecode api trace include file -- {ROCM_PATH}/include/rocdecode/amd_detail
   install(FILES api/amd_detail/rocdecode_api_trace.h
@@ -188,9 +200,53 @@ if(HIP_FOUND AND Libva_FOUND)
   # install test cmake
   install(FILES test/CMakeLists.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/test COMPONENT test)
   install(DIRECTORY test/testScripts DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/test COMPONENT test)
+  install(FILES test/rocDecodeNegativeApiTests/CMakeLists.txt test/rocDecodeNegativeApiTests/README.md test/rocDecodeNegativeApiTests/rocdecode_api_negative_tests.cpp test/rocDecodeNegativeApiTests/rocdecode_api_negative_tests.h test/rocDecodeNegativeApiTests/rocdecodenegativetest.cpp DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/test/rocDecodeNegativeApiTests COMPONENT dev)
 
   message("-- ${White}AMD ROCm rocDecode -- CMAKE_CXX_FLAGS:${CMAKE_CXX_FLAGS}${ColourReset}")
   message("-- ${White}AMD ROCm rocDecode -- Link Libraries: ${LINK_LIBRARY_LIST}${ColourReset}")
+
+  ## Cmake module config file configurations
+  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/" CACHE INTERNAL "Default module path.")
+
+  ## Export the package for use from the build-tree
+  ## (this registers the build-tree with a global CMake-registry)
+  export(PACKAGE ${PROJECT_NAME})
+  set(CONF_LIB_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+  ## Create the rocdecode-config.cmake and rocdecode-config-version files
+  include(CMakePackageConfigHelpers)
+  set(CONFIG_PACKAGE_INSTALL_DIR ${CONF_LIB_DIR}/cmake/${PROJECT_NAME})
+  set(LIB_INSTALL_DIR  "${CMAKE_INSTALL_LIBDIR}")
+  set(INCLUDE_INSTALL_DIR  "${CMAKE_INSTALL_INCLUDEDIR}")
+  set(BIN_INSTALL_DIR  "${CMAKE_INSTALL_BINDIR}")
+
+  ## Generate Config File for rocdecode
+  configure_package_config_file(
+    ${CMAKE_MODULE_PATH}/${PROJECT_NAME}-config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
+    INSTALL_DESTINATION ${CONFIG_PACKAGE_INSTALL_DIR}
+    PATH_VARS LIB_INSTALL_DIR INCLUDE_INSTALL_DIR BIN_INSTALL_DIR
+  )
+
+  ## Generate config Version File for rocdecode
+  write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
+    VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
+    COMPATIBILITY SameMajorVersion
+  )
+
+  ## Install the rocdecode-config.cmake and rocdecode-config-version.cmake
+  install(FILES
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+    COMPONENT dev
+  )
+
+  ## Install the export set for use with the install-tree
+  install(EXPORT ${PROJECT_NAME}-targets DESTINATION
+    "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}" COMPONENT dev
+  )
 
   # make test with CTest
   enable_testing()
@@ -364,4 +420,7 @@ else()
   if(NOT Libva_FOUND)
     message(FATAL_ERROR "-- ERROR!: libva Not Found - please install libva-amdgpu-dev/libva-amdgpu-devel!")
   endif()
-endif()
+  if(NOT Libdrm_amdgpu_FOUND)
+    message(FATAL_ERROR "-- ERROR!: libdrm_amdgpu Not Found - please install libdrm-amdgpu-dev(DEBIAN)/libdrm-amdgpu-devel(RPM) package!")
+  endif()
+  endif()

@@ -40,12 +40,13 @@ else()
   set(ROCM_PATH /opt/rocm CACHE PATH "Default ROCm installation path")
 endif()
 # Set AMD Clang as default compiler
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED On)
+set(CMAKE_CXX_EXTENSIONS ON)
 if (NOT DEFINED CMAKE_CXX_COMPILER)
   set(CMAKE_C_COMPILER ${ROCM_PATH}/bin/amdclang)
   set(CMAKE_CXX_COMPILER ${ROCM_PATH}/bin/amdclang++)
 endif()
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED On)
 
 project(rocdecode-test)
 
@@ -53,15 +54,25 @@ project(rocdecode-test)
 enable_testing()
 include(CTest)
 
-# add find modules
-list(APPEND CMAKE_MODULE_PATH ${ROCM_PATH}/share/rocdecode/cmake)
+# add ROCm find Config location
+list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH}/lib/cmake)
 
 # find rocDecode
-find_package(rocDecode QUIET)
+find_package(ROCDECODE QUIET)
 
-if(NOT ROCDECODE_FOUND)
-    message("-- ${Yellow}${PROJECT_NAME} requires rocDecode. Install rocDecode before running CTests")
-endif()
+if(ROCDECODE_FOUND)
+  message("-- ${White}${PROJECT_NAME}: rocDecode found with find_package(ROCDECODE QUIET)${ColourReset}")
+  message("-- \t${White}ROCDECODE_INCLUDE_DIR -- ${ROCDECODE_INCLUDE_DIR}${ColourReset}")
+  message("-- \t${White}ROCDECODE_LIB_DIR -- ${ROCDECODE_LIB_DIR}${ColourReset}")
+  message("-- \t${White}ROCDECODE_LIBRARY -- ${ROCDECODE_LIBRARY}${ColourReset}")
+  message("-- \t${White}ROCDECODE_FOUND -- ${ROCDECODE_FOUND}${ColourReset}")
+  message("-- \t${White}ROCDECODE_VERSION -- ${ROCDECODE_VERSION}${ColourReset}")
+  message("-- \t${White}ROCDECODE_VERSION_MAJOR -- ${ROCDECODE_VERSION_MAJOR}${ColourReset}")
+  message("-- \t${White}ROCDECODE_VERSION_MINOR -- ${ROCDECODE_VERSION_MINOR}${ColourReset}")
+  message("-- \t${White}ROCDECODE_VERSION_PATCH -- ${ROCDECODE_VERSION_PATCH}${ColourReset}")
+else()
+  message("-- ${Yellow}${PROJECT_NAME} requires rocDecode. Install rocDecode before running CTests")
+endif(ROCDECODE_FOUND)
 
 # 1 - videoDecode HEVC
 add_test(
@@ -194,7 +205,7 @@ add_test(
             -i ${ROCM_PATH}/share/rocdecode/video/AMD_driving_virtual_20-H264.264
 )
 
-# 3 - videoDecodeRaw AV1
+# 11 - videoDecodeRaw AV1
 add_test(
   NAME
     video_decodeRaw-AV1
@@ -205,4 +216,29 @@ add_test(
             --build-generator "${CMAKE_GENERATOR}"
             --test-command "videodecoderaw"
             -i ${ROCM_PATH}/share/rocdecode/video/AMD_driving_virtual_20-AV1.ivf
+)
+
+# 12 - videoDecodeRaw VP9
+add_test(
+  NAME
+    video_decodeRaw-VP9
+  COMMAND
+    "${CMAKE_CTEST_COMMAND}"
+            --build-and-test "${ROCM_PATH}/share/rocdecode/samples/videoDecodeRaw"
+                              "${CMAKE_CURRENT_BINARY_DIR}/videoDecodeRaw"
+            --build-generator "${CMAKE_GENERATOR}"
+            --test-command "videodecoderaw"
+            -i ${ROCM_PATH}/share/rocdecode/video/AMD_driving_virtual_20-VP9.ivf
+)
+
+# 13 - rocDecodeNegativeApiTests
+add_test(
+  NAME
+  rocDecode_Negative_API_Tests
+  COMMAND
+    "${CMAKE_CTEST_COMMAND}"
+            --build-and-test "${ROCM_PATH}/share/rocdecode/test/rocDecodeNegativeApiTests"
+                              "${CMAKE_CURRENT_BINARY_DIR}/rocdecodenegativetest"
+            --build-generator "${CMAKE_GENERATOR}"
+            --test-command "rocdecodenegativetest"
 )

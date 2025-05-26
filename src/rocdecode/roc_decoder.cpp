@@ -87,7 +87,8 @@ rocDecStatus RocDecoder::GetDecodeStatus(int pic_idx, RocdecDecodeStatus* decode
 }
 
 rocDecStatus RocDecoder::ReconfigureDecoder(RocdecReconfigureDecoderInfo *reconfig_params) {
-    if (reconfig_params == nullptr) {
+    if (reconfig_params == nullptr || reconfig_params->width == 0 || reconfig_params->height == 0 ||
+        reconfig_params->num_decode_surfaces < 1 || reconfig_params->bit_depth_minus_8 > 2) {
         return ROCDEC_INVALID_PARAMETER;
     }
     rocDecStatus rocdec_status;
@@ -97,6 +98,9 @@ rocDecStatus RocDecoder::ReconfigureDecoder(RocdecReconfigureDecoderInfo *reconf
             ERR("Releasing the video frame for picture idx = " + TOSTR(pic_idx) + " failed during reconfiguration.");
             return rocdec_status;
         }
+    }
+    if (hip_interop_.size() != reconfig_params->num_decode_surfaces) {
+        hip_interop_.resize(reconfig_params->num_decode_surfaces);
     }
     rocdec_status = va_video_decoder_.ReconfigureDecoder(reconfig_params);
     if (rocdec_status != ROCDEC_SUCCESS) {

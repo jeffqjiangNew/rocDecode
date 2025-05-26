@@ -23,14 +23,11 @@ THE SOFTWARE.
 #include "vaapi_videodecoder.h"
 
 VaapiVideoDecoder::VaapiVideoDecoder(RocDecoderCreateInfo &decoder_create_info) : decoder_create_info_{decoder_create_info},
-    drm_fd_{-1}, va_display_{0}, va_config_attrib_{{}}, va_config_id_{0}, va_profile_ {VAProfileNone}, va_context_id_{0}, va_surface_ids_{{}},
+    va_display_{0}, va_config_attrib_{{}}, va_config_id_{0}, va_profile_ {VAProfileNone}, va_context_id_{0}, va_surface_ids_{{}},
     supports_modifiers_{false}, pic_params_buf_id_{0}, iq_matrix_buf_id_{0}, num_slices_{0}, slice_data_buf_id_{0} {
 };
 
 VaapiVideoDecoder::~VaapiVideoDecoder() {
-    if (drm_fd_ != -1) {
-        close(drm_fd_);
-    }
     if (va_display_) {
         rocDecStatus rocdec_status = ROCDEC_SUCCESS;
         rocdec_status = DestroyDataBuffers();
@@ -228,17 +225,10 @@ rocDecStatus VaapiVideoDecoder::SubmitDecode(RocdecPicParams *pPicParams) {
             slice_params_ptr = (void*)pPicParams->slice_params.av1;
             slice_params_size = sizeof(RocdecAv1SliceParams);
 
-#if VA_CHECK_VERSION(1,6,0)
             if ((pic_params_size != sizeof(VADecPictureParameterBufferAV1)) || (slice_params_size != sizeof(VASliceParameterBufferAV1))) {
                     ERR("AV1 data_buffer parameter_size not matching vaapi parameter buffer size.");
                     return ROCDEC_RUNTIME_ERROR;
             }
-#else
-            if ((pic_params_size != 1160) || (slice_params_size != 40)) {
-                    ERR("AV1 data_buffer parameter_size not matching vaapi parameter buffer size.");
-                    return ROCDEC_RUNTIME_ERROR;
-            }
-#endif
             break;
         }
 
@@ -339,7 +329,16 @@ rocDecStatus VaapiVideoDecoder::ReconfigureDecoder(RocdecReconfigureDecoderInfo 
         return ROCDEC_NOT_SUPPORTED;
     }
     CHECK_VAAPI(vaDestroySurfaces(va_display_, va_surface_ids_.data(), va_surface_ids_.size()));
-    CHECK_VAAPI(vaDestroyContext(va_display_, va_context_id_));
+    if (va_context_id_) {
+        CHECK_VAAPI(vaDestroyContext(va_display_, va_context_id_));
+        va_context_id_ = 0;
+    }
+    // Need to re-create VA config if bit deepth changes
+    bool create_va_config = decoder_create_info_.bit_depth_minus_8 != reconfig_params->bit_depth_minus_8 ? true : false;
+    if (create_va_config) {
+        CHECK_VAAPI(vaDestroyConfig(va_display_, va_config_id_));
+        va_config_id_ = 0;
+    }
 
     va_surface_ids_.clear();
     decoder_create_info_.width = reconfig_params->width;
@@ -347,8 +346,17 @@ rocDecStatus VaapiVideoDecoder::ReconfigureDecoder(RocdecReconfigureDecoderInfo 
     decoder_create_info_.num_decode_surfaces = reconfig_params->num_decode_surfaces;
     decoder_create_info_.target_height = reconfig_params->target_height;
     decoder_create_info_.target_width = reconfig_params->target_width;
+    decoder_create_info_.bit_depth_minus_8 = reconfig_params->bit_depth_minus_8;
 
-    rocDecStatus rocdec_status = CreateSurfaces();
+    rocDecStatus rocdec_status;
+    if (create_va_config) {
+        rocdec_status = CreateDecoderConfig();
+        if (rocdec_status != ROCDEC_SUCCESS) {
+            ERR("Failed to create a VAAPI decoder configuration.");
+            return rocdec_status;
+        }
+    }
+    rocdec_status = CreateSurfaces();
     if (rocdec_status != ROCDEC_SUCCESS) {
         ERR("Failed to create VAAPI surfaces during the decoder reconfiguration.");
         return rocdec_status;
@@ -394,11 +402,7 @@ rocDecStatus VaapiVideoDecoder::CreateDecoderConfig() {
             }
             break;
         case rocDecVideoCodec_AV1:
-#if VA_CHECK_VERSION(1,6,0)
             va_profile_ = VAProfileAV1Profile0;
-#else
-            va_profile_ = static_cast<VAProfile>(32); // VAProfileAV1Profile0;
-#endif
             break;
         default:
             ERR("The codec type is not supported.");
@@ -443,11 +447,7 @@ rocDecStatus VaapiVideoDecoder::CreateSurfaces() {
                 surf_attrib.value.value.i = VA_FOURCC_P010;
             } else if (decoder_create_info_.bit_depth_minus_8 == 4) {
                 surface_format = VA_RT_FORMAT_YUV420_12;
-#if VA_CHECK_VERSION(1,8,0)
                 surf_attrib.value.value.i = VA_FOURCC_P012;
-#else
-                surf_attrib.value.value.i = 0x32313050; // VA_FOURCC_P012
-#endif
             } else {
                 surface_format = VA_RT_FORMAT_YUV420;
                 surf_attrib.value.value.i = VA_FOURCC_NV12;
@@ -514,6 +514,9 @@ VaContext::VaContext() {
 
 VaContext::~VaContext() {
     for (int i = 0; i < va_contexts_.size(); i++) {
+        if (va_contexts_[i].drm_fd != -1) {
+            close(va_contexts_[i].drm_fd);
+        }
         if (va_contexts_[i].va_display) {
             if (vaTerminate(va_contexts_[i].va_display) != VA_STATUS_SUCCESS) {
                 ERR("Failed to termiate VA");
@@ -665,11 +668,7 @@ rocDecStatus VaContext::CheckDecCapForCodecType(RocdecDecodeCaps *dec_cap) {
             break;
         }
         case rocDecVideoCodec_AV1: {
-        #if VA_CHECK_VERSION(1,6,0)
             va_profile = VAProfileAV1Profile0;
-        #else
-            va_profile = static_cast<VAProfile>(32); // VAProfileAV1Profile0;
-        #endif
             break;
         }
         default: {

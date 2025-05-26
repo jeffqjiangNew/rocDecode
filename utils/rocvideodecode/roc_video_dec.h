@@ -22,7 +22,6 @@ THE SOFTWARE.
 
 #pragma once
 
-#include <assert.h>
 #include <stdint.h>
 #include <mutex>
 #include <vector>
@@ -37,8 +36,8 @@ THE SOFTWARE.
 #include <unordered_map>
 #include <chrono>
 #include <hip/hip_runtime.h>
-#include "rocdecode.h"
-#include "rocparser.h"
+#include "rocdecode/rocdecode.h"
+#include "rocdecode/rocparser.h"
 
 /*!
  * \file
@@ -68,11 +67,11 @@ typedef enum OutputSurfaceMemoryType_enum {
 #define STR(X) std::string(X)
 
 #if DBGINFO
-#define INFO(X) std::clog << "[INF] " << " {" << __func__ <<"} " << " " << X << std::endl;
+#define ROCDEC_INFO(X) std::clog << "[INF] " << " {" << __func__ <<"} " << " " << X << std::endl;
 #else
-#define INFO(X) ;
+#define ROCDEC_INFO(X) ;
 #endif
-#define ERR(X) std::cerr << "[ERR] "  << " {" << __func__ <<"} " << " " << X << std::endl;
+#define ROCDEC_ERR(X) std::cerr << "[ERR] "  << " {" << __func__ <<"} " << " " << X << std::endl;
 
 inline int GetChromaPlaneCount(rocDecVideoSurfaceFormat surface_format) {
     int num_planes = 1;
@@ -83,10 +82,10 @@ inline int GetChromaPlaneCount(rocDecVideoSurfaceFormat surface_format) {
         break;
     case rocDecVideoSurfaceFormat_YUV444:
     case rocDecVideoSurfaceFormat_YUV444_16Bit:
-        num_planes = 2;
-        break;
     case rocDecVideoSurfaceFormat_YUV420:
     case rocDecVideoSurfaceFormat_YUV420_16Bit:
+    case rocDecVideoSurfaceFormat_YUV422:
+    case rocDecVideoSurfaceFormat_YUV422_16Bit:
         num_planes = 2;
         break;
     }
@@ -103,6 +102,8 @@ inline float GetChromaHeightFactor(rocDecVideoSurfaceFormat surface_format) {
     case rocDecVideoSurfaceFormat_YUV420_16Bit:
         factor = 0.5;
         break;
+    case rocDecVideoSurfaceFormat_YUV422:
+    case rocDecVideoSurfaceFormat_YUV422_16Bit:
     case rocDecVideoSurfaceFormat_YUV444:
     case rocDecVideoSurfaceFormat_YUV444_16Bit:
         factor = 1.0;
@@ -111,7 +112,6 @@ inline float GetChromaHeightFactor(rocDecVideoSurfaceFormat surface_format) {
 
     return factor;
 };
-
 
 class RocVideoDecodeException : public std::exception {
 public:
@@ -128,7 +128,6 @@ private:
 };
 
 #define ROCDEC_THROW(X, CODE) throw RocVideoDecodeException(" { " + std::string(__func__) + " } " + X , CODE);
-#define THROW(X) throw RocVideoDecodeException(" { " + std::string(__func__) + " } " + X);
 
 #define ROCDEC_API_CALL( rocDecAPI )                                                                         \
     do {                                                                                                     \
@@ -153,6 +152,10 @@ private:
     }                                                                                                         \
     while (0)
 
+#define CHECK_ZERO(str, value)              \
+    if (value == 0) {                      \
+        ROCDEC_ERR(STR(str) + " is 0.");    \
+    }
 
 struct Rect {
     int left;
@@ -216,41 +219,39 @@ class RocVideoDecoder {
         RocVideoDecoder(int device_id,  OutputSurfaceMemoryType out_mem_type, rocDecVideoCodec codec, bool force_zero_latency = false,
                           const Rect *p_crop_rect = nullptr, bool extract_user_SEI_Message = false, uint32_t disp_delay = 0, int max_width = 0, int max_height = 0,
                           uint32_t clk_rate = 1000);
-        ~RocVideoDecoder();
-        
-        rocDecVideoCodec GetCodecId() { return codec_id_; }
+        virtual ~RocVideoDecoder();
 
-        hipStream_t GetStream() {return hip_stream_;}
+        rocDecVideoCodec GetCodecId() { return codec_id_; }
 
         /**
          * @brief Get the output frame width
          */
-        uint32_t GetWidth() { assert(disp_width_); return disp_width_;}
+        uint32_t GetWidth() {CHECK_ZERO("Display width", disp_width_); return disp_width_;}
 
         /**
         *  @brief  This function is used to get the actual decode width
         */
-        int GetDecodeWidth() { assert(coded_width_); return coded_width_; }
+        int GetDecodeWidth() {CHECK_ZERO("Coded width", coded_width_); return coded_width_; }
 
         /**
          * @brief Get the output frame height
          */
-        uint32_t GetHeight() { assert(disp_height_); return disp_height_; }
+        uint32_t GetHeight() {CHECK_ZERO("Display height", disp_height_); return disp_height_; }
 
         /**
         *  @brief  This function is used to get the current chroma height.
         */
-        int GetChromaHeight() { assert(chroma_height_); return chroma_height_; }
+        int GetChromaHeight() {CHECK_ZERO("Chroma height", chroma_height_); return chroma_height_; }
 
         /**
         *  @brief  This function is used to get the number of chroma planes.
         */
-        int GetNumChromaPlanes() { assert(num_chroma_planes_); return num_chroma_planes_; }
+        int GetNumChromaPlanes() {return num_chroma_planes_; }
 
         /**
         *   @brief  This function is used to get the current frame size based on pixel format.
         */
-        virtual int GetFrameSize() { assert(disp_width_); return disp_width_ * (disp_height_ + (chroma_height_ * num_chroma_planes_)) * byte_per_pixel_; }
+        virtual int GetFrameSize() {CHECK_ZERO("Display width", disp_width_); return disp_width_ * (disp_height_ + (chroma_height_ * num_chroma_planes_)) * byte_per_pixel_; }
 
 
         /**
@@ -258,13 +259,13 @@ class RocVideoDecoder {
          * 
          * @return uint32_t 
          */
-        uint32_t GetBitDepth() { assert(bitdepth_minus_8_); return (bitdepth_minus_8_ + 8); }
-        uint32_t GetBytePerPixel() { assert(byte_per_pixel_); return byte_per_pixel_; }
+        uint32_t GetBitDepth() {return (bitdepth_minus_8_ + 8); }
+        uint32_t GetBytePerPixel() {CHECK_ZERO("Bytes per pixel", byte_per_pixel_); return byte_per_pixel_; }
         /**
          * @brief Functions to get the output surface attributes
          */
-        size_t GetSurfaceSize() { assert(surface_size_); return surface_size_; }
-        uint32_t GetSurfaceStride() { assert(surface_stride_); return surface_stride_; }
+        size_t GetSurfaceSize() {CHECK_ZERO("Surface size", surface_size_); return surface_size_; }
+        uint32_t GetSurfaceStride() {CHECK_ZERO("Surface stride", surface_stride_); return surface_stride_; }
         //RocDecImageFormat GetSubsampling() { return subsampling_; }
         /**
          * @brief Get the name of the output format
@@ -430,7 +431,7 @@ class RocVideoDecoder {
         int HandleVideoSequence(RocdecVideoFormat *p_video_format);
 
         /**
-         *   @brief  This function gets called when a picture is ready to be decoded. cuvidDecodePicture is called from this function
+         *   @brief  This function gets called when a picture is ready to be decoded. rocDecDecodeFrame is called from this function
          *   to decode the picture
          */
         int HandlePictureDecode(RocdecPicParams *p_pic_params);
@@ -476,15 +477,15 @@ class RocVideoDecoder {
         RocdecVideoParser rocdec_parser_ = nullptr;
         rocDecDecoderHandle roc_decoder_ = nullptr;
         OutputSurfaceMemoryType out_mem_type_ = OUT_SURFACE_MEM_DEV_INTERNAL;
-        bool b_extract_sei_message_ = false;
+        rocDecVideoCodec codec_id_ = rocDecVideoCodec_NumCodecs;
         bool b_force_zero_latency_ = false;
+        bool b_extract_sei_message_ = false;
         uint32_t disp_delay_;
         ReconfigParams *p_reconfig_params_ = nullptr;
         bool b_force_recofig_flush_ = false;
         int32_t num_frames_flushed_during_reconfig_ = 0;
         hipDeviceProp_t hip_dev_prop_;
         hipStream_t hip_stream_;
-        rocDecVideoCodec codec_id_ = rocDecVideoCodec_NumCodecs;
         rocDecVideoChromaFormat video_chroma_format_ = rocDecVideoChromaFormat_420;
         rocDecVideoSurfaceFormat video_surface_format_ = rocDecVideoSurfaceFormat_NV12;
         RocdecSeiMessageInfo *curr_sei_message_ptr_ = nullptr;
@@ -506,6 +507,7 @@ class RocVideoDecoder {
         uint32_t target_height_ = 0;
         int max_width_ = 0, max_height_ = 0;
         uint32_t chroma_height_ = 0, chroma_width_ = 0;
+        uint32_t num_decode_surfaces_ = 0;
         uint32_t num_chroma_planes_ = 0;
         uint32_t num_components_ = 0;
         uint32_t surface_stride_ = 0;
