@@ -295,6 +295,7 @@ int main(int argc, char **argv) {
         OutputSurfaceInfo *surf_info;
         uint32_t width, height;
         double total_dec_time = 0;
+        double total_demux_time = 0;
         bool first_frame = true;
         MD5Generator *md5_generator = nullptr;
 
@@ -351,6 +352,9 @@ int main(int argc, char **argv) {
                     return 1;
                 }
             }
+            auto demux_end_time = std::chrono::high_resolution_clock::now();
+            auto demux_time = std::chrono::duration<double, std::milli>(demux_end_time - start_time).count();
+            total_demux_time += demux_time;
             // Treat 0 bitstream size as end of stream indicator
             if (n_video_bytes == 0) {
                 pkg_flags |= ROCDEC_PKT_ENDOFSTREAM;
@@ -386,6 +390,7 @@ int main(int argc, char **argv) {
         std::cout << "info: Total pictures decoded: " << n_pic_decoded << std::endl;
         std::cout << "info: Total frames output/displayed: " << n_frame << std::endl;
         if (!dump_output_frames) {
+            std::cout << "info: avg demux time per picture: " << total_demux_time / n_pic_decoded << " ms" <<std::endl;
             std::cout << "info: avg decoding time per picture: " << total_dec_time / n_pic_decoded << " ms" <<std::endl;
             std::cout << "info: avg decode FPS: " << (n_pic_decoded / total_dec_time) * 1000 << std::endl;
             std::cout << "info: avg output/display time per frame: " << total_dec_time / n_frame << " ms" <<std::endl;
